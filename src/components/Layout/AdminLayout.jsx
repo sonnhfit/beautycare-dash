@@ -13,6 +13,7 @@ import {
   MedicineBoxOutlined,
   UserSwitchOutlined,
   MenuOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -76,6 +77,11 @@ const AdminLayout = ({ children }) => {
       key: '/customer-care',
       icon: <HeartOutlined />,
       label: 'Chăm sóc Khách hàng',
+    },
+    {
+      key: '/care-plan-templates',
+      icon: <FileTextOutlined />,
+      label: 'Template Chăm sóc',
     },
     {
       key: '/staff',

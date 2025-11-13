@@ -7,8 +7,9 @@ const doctorService = {
    */
   async getDoctors() {
     try {
-      // Using the doctor search endpoint without query to get all doctors
+      // Using the correct endpoint from users app
       const response = await api.get('/doctors/search/');
+      console.log('Doctor service response:', response);
       return response.data;
     } catch (error) {
       console.error('Error fetching doctors:', error);
