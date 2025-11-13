@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -17,20 +18,41 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Kiểm tra trạng thái đăng nhập từ localStorage khi component mount
-    const checkAuthStatus = () => {
-      const authStatus = localStorage.getItem('isAuthenticated');
-      const userRole = localStorage.getItem('userRole');
-      const username = localStorage.getItem('username');
-
-      if (authStatus === 'true' && userRole && username) {
-        setIsAuthenticated(true);
-        setUser({
-          username,
-          role: userRole
-        });
+    const checkAuthStatus = async () => {
+      try {
+        const isAuthenticated = authService.isAuthenticated();
+        
+        if (isAuthenticated) {
+          // Verify token is still valid
+          const isValid = await authService.verifyToken();
+          
+          if (isValid) {
+            const user = authService.getCurrentUser();
+            setIsAuthenticated(true);
+            setUser(user);
+          } else {
+            // Token is invalid, try to refresh
+            const newToken = await authService.refreshToken();
+            if (newToken) {
+              const user = authService.getCurrentUser();
+              setIsAuthenticated(true);
+              setUser(user);
+            } else {
+              // Refresh failed, logout
+              authService.logout();
+              setIsAuthenticated(false);
+              setUser(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        authService.logout();
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     checkAuthStatus();
@@ -38,34 +60,19 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      // TODO: Thay thế bằng API call thực tế
-      // Giả lập login thành công
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const userData = {
-            username,
-            role: 'admin' // Trong thực tế sẽ lấy từ API response
-          };
-
-          localStorage.setItem('isAuthenticated', 'true');
-          localStorage.setItem('userRole', userData.role);
-          localStorage.setItem('username', userData.username);
-
-          setIsAuthenticated(true);
-          setUser(userData);
-          resolve(userData);
-        }, 1000);
-      });
+      const result = await authService.login(username, password);
+      
+      setIsAuthenticated(true);
+      setUser(result.user);
+      
+      return result.user;
     } catch (error) {
-      throw new Error('Đăng nhập thất bại');
+      throw error;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('username');
-    
+    authService.logout();
     setIsAuthenticated(false);
     setUser(null);
   };

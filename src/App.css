@@ -124,6 +124,138 @@ body {
   .ant-statistic-content {
     font-size: 20px;
   }
+
+  /* Mobile header adjustments */
+  .ant-layout-header {
+    padding: 0 12px !important;
+    height: 56px !important;
+  }
+
+/* Mobile content adjustments */
+.ant-layout-content {
+  margin: 16px 8px !important;
+  padding: 16px !important;
+  min-height: calc(100vh - 120px) !important;
+  max-height: calc(100vh - 120px) !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+  /* Mobile drawer styles */
+  .ant-drawer-body {
+    padding: 0 !important;
+  }
+
+  /* Mobile menu item styles */
+  .ant-menu-item {
+    margin: 2px 8px !important;
+    height: 48px !important;
+    line-height: 48px !important;
+  }
+
+  /* Mobile button adjustments */
+  .ant-btn {
+    min-height: 40px;
+  }
+
+/* Mobile table adjustments */
+.ant-table {
+  font-size: 14px;
+  overflow-x: auto !important;
+}
+
+.ant-table-thead > tr > th {
+  padding: 8px !important;
+  white-space: nowrap;
+}
+
+.ant-table-tbody > tr > td {
+  padding: 8px !important;
+  white-space: nowrap;
+}
+
+/* Horizontal scrolling for tables on mobile */
+.ant-table-container {
+  overflow-x: auto !important;
+}
+
+.ant-table-content {
+  overflow-x: auto !important;
+  min-width: 800px;
+}
+
+  /* Mobile card adjustments */
+  .ant-card {
+    margin-bottom: 16px;
+  }
+
+  .ant-card-head {
+    padding: 12px 16px !important;
+  }
+
+  .ant-card-body {
+    padding: 16px !important;
+  }
+
+  /* Mobile form adjustments */
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+
+  .ant-form-item-label > label {
+    font-size: 14px;
+  }
+
+  /* Mobile avatar adjustments */
+  .ant-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .ant-layout-header {
+    padding: 0 8px !important;
+  }
+
+  .ant-layout-content {
+    margin: 12px 4px !important;
+    padding: 12px !important;
+  }
+
+  .ant-card-head {
+    padding: 8px 12px !important;
+  }
+
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .ant-table {
+    font-size: 13px;
+  }
+
+  .ant-btn {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+}
+
+/* Tablet devices */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .ant-layout-sider {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+  }
+  
+  .ant-layout-sider-collapsed {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+  }
 }
 
 /* Custom scrollbar */

@@ -9,6 +9,9 @@ import Customers from './pages/Customers';
 import Appointments from './pages/Appointments';
 import Staff from './pages/Staff';
 import Settings from './pages/Settings';
+import CustomerCare from './pages/CustomerCare';
+import Doctors from './pages/Doctors';
+import Nurses from './pages/Nurses';
 import Login from './pages/Login';
 import './App.css';
 
@@ -60,6 +63,9 @@ function AppContent() {
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/appointments" element={<Appointments />} />
                   <Route path="/staff" element={<Staff />} />
+                  <Route path="/doctors" element={<Doctors />} />
+                  <Route path="/nurses" element={<Nurses />} />
+                  <Route path="/customer-care" element={<CustomerCare />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
