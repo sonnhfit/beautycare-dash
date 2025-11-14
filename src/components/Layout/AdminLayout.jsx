@@ -5,7 +5,6 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   UserOutlined,
-  CalendarOutlined,
   TeamOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -56,12 +55,7 @@ const AdminLayout = ({ children }) => {
     {
       key: '/customers',
       icon: <UserOutlined />,
-      label: 'Quản lý Khách hàng',
-    },
-    {
-      key: '/appointments',
-      icon: <CalendarOutlined />,
-      label: 'Quản lý Cuộc hẹn',
+      label: 'Khách hàng',
     },
     {
       key: '/doctors',

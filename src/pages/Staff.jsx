@@ -70,7 +70,7 @@ const Staff = () => {
       email: 'phamvan.b@beautycare.com',
       phone: '0904444444',
       role: 'nurse',
-      specialty: 'Theo dõi bệnh nhân',
+      specialty: 'Theo dõi khách hàng',
       status: 'inactive',
       avatar: null,
     },

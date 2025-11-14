@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Table,
   Card,
+  Row,
+  Col,
   Button,
   Space,
+  Table,
   Tag,
   Modal,
   Form,
@@ -11,12 +13,23 @@ import {
   Select,
   DatePicker,
   TimePicker,
+  InputNumber,
+  Switch,
   message,
   Popconfirm,
-  Row,
-  Col,
-  Statistic,
+  Upload,
+  Image,
+  Divider,
+  Timeline,
+  Progress,
   Badge,
+  Avatar,
+  List,
+  Typography,
+  Tooltip,
+  Drawer,
+  Collapse,
+  Dropdown,
   Checkbox
 } from 'antd';
 import {
@@ -25,544 +38,869 @@ import {
   DeleteOutlined,
   EyeOutlined,
   CalendarOutlined,
-  ClockCircleOutlined,
+  TeamOutlined,
   UserOutlined,
-  TeamOutlined
+  MedicineBoxOutlined,
+  CameraOutlined,
+  VideoCameraOutlined,
+  AudioOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  UploadOutlined,
+  PlayCircleOutlined,
+  SoundOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  SettingOutlined,
+  MoreOutlined,
+  DragOutlined,
+  CopyOutlined,
+  ScheduleOutlined,
+  UserAddOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useAuth } from '../contexts/AuthContext';
+import customerService from '../services/customerService';
+import carePlanService from '../services/carePlanService';
+import doctorService from '../services/doctorService';
+import nurseService from '../services/nurseService';
+import customerCareService from '../services/customerCareService';
 
 const { Option } = Select;
 const { TextArea } = Input;
+const { Title, Text } = Typography;
+const { Panel } = Collapse;
+const { Search } = Input;
 
 const CustomerCare = () => {
-  const { user } = useAuth();
-  const [customerCareData, setCustomerCareData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCare, setSelectedCare] = useState(null);
-  const [form] = Form.useForm();
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('activities');
+  const [activities, setActivities] = useState({});
+  const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  
+  // Filter states
+  const [doctorFilter, setDoctorFilter] = useState(null);
+  const [surgeryTypeFilter, setSurgeryTypeFilter] = useState(null);
+  const [postOpDayFilter, setPostOpDayFilter] = useState(null);
+  const [taskStatusFilter, setTaskStatusFilter] = useState(null);
 
-  // Mock data - In real app, this would come from API
-  const mockCustomerCareData = [
-    {
-      id: 1,
-      customer: { id: 1, name: 'Nguyễn Văn A', phone: '0123456789' },
-      care_type: 'daily_check',
-      title: 'Kiểm tra sức khỏe buổi sáng',
-      description: 'Kiểm tra nhiệt độ, huyết áp và tình trạng vết thương',
-      assigned_nurse: { id: 1, name: 'Y tá Mai' },
-      assigned_doctor: { id: 1, name: 'Bác sĩ Hùng' },
-      priority: 'medium',
-      scheduled_date: '2025-01-13',
-      scheduled_time: '08:00:00',
-      duration_minutes: 15,
-      status: 'scheduled',
-      notes: '',
-      requires_follow_up: false,
-      created_at: '2025-01-12T10:00:00Z'
-    },
-    {
-      id: 2,
-      customer: { id: 2, name: 'Trần Thị B', phone: '0987654321' },
-      care_type: 'medication_reminder',
-      title: 'Nhắc uống thuốc kháng sinh',
-      description: 'Nhắc khách hàng uống thuốc Augmentin 1g',
-      assigned_nurse: { id: 2, name: 'Y tá Lan' },
-      assigned_doctor: { id: 1, name: 'Bác sĩ Hùng' },
-      priority: 'high',
-      scheduled_date: '2025-01-13',
-      scheduled_time: '12:00:00',
-      duration_minutes: 10,
-      status: 'completed',
-      completed_at: '2025-01-13T12:05:00Z',
-      notes: 'Khách hàng đã uống thuốc đúng giờ',
-      requires_follow_up: false,
-      created_at: '2025-01-12T14:30:00Z'
-    },
-    {
-      id: 3,
-      customer: { id: 3, name: 'Lê Văn C', phone: '0912345678' },
-      care_type: 'follow_up',
-      title: 'Theo dõi sau phẫu thuật',
-      description: 'Gọi điện theo dõi tình trạng hồi phục',
-      assigned_nurse: { id: 1, name: 'Y tá Mai' },
-      assigned_doctor: { id: 2, name: 'Bác sĩ Minh' },
-      priority: 'medium',
-      scheduled_date: '2025-01-14',
-      scheduled_time: '15:00:00',
-      duration_minutes: 20,
-      status: 'scheduled',
-      notes: '',
-      requires_follow_up: true,
-      follow_up_date: '2025-01-16',
-      created_at: '2025-01-12T16:45:00Z'
-    }
-  ];
+  // Modal states
+  const [activityModalVisible, setActivityModalVisible] = useState(false);
+  const [appointmentModalVisible, setAppointmentModalVisible] = useState(false);
+  const [editingActivity, setEditingActivity] = useState(null);
+  const [editingAppointment, setEditingAppointment] = useState(null);
+
+  // Forms
+  const [activityForm] = Form.useForm();
+  const [appointmentForm] = Form.useForm();
 
   useEffect(() => {
-    loadCustomerCareData();
+    loadInitialData();
   }, []);
 
-  const loadCustomerCareData = () => {
+  const loadInitialData = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setCustomerCareData(mockCustomerCareData);
+    try {
+      const [customersData, doctorsData] = await Promise.all([
+        customerService.getCustomers(),
+        doctorService.getDoctors()
+      ]);
+      
+      // Transform customers data to match frontend format
+      const transformedCustomers = customersData.map(customer => ({
+        id: customer.id,
+        name: `${customer.user?.first_name || ''} ${customer.user?.last_name || ''}`.trim() || customer.user?.username || 'Khách hàng',
+        surgeryType: customer.surgeries?.[0]?.surgery_type || 'Chưa có thông tin',
+        postOpDay: calculatePostOpDay(customer.surgeries?.[0]?.surgery_date),
+        todayTasks: calculateTodayTasks(customer),
+        nextAppointment: getNextAppointment(customer),
+        progress: calculateProgress(customer),
+        doctor: customer.assigned_doctor?.user?.first_name ? 
+          `BS. ${customer.assigned_doctor.user.first_name} ${customer.assigned_doctor.user.last_name || ''}`.trim() : 
+          'Chưa gán bác sĩ',
+        status: customer.status || 'active'
+      }));
+      
+      setCustomers(transformedCustomers);
+      setDoctors(doctorsData);
+      
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      message.error('Lỗi khi tải dữ liệu');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
-  const getCareTypeDisplay = (type) => {
-    const types = {
-      daily_check: 'Kiểm tra Hàng ngày',
-      medication_reminder: 'Nhắc uống Thuốc',
-      follow_up: 'Theo dõi',
-      appointment_reminder: 'Nhắc lịch hẹn',
-      symptom_check: 'Kiểm tra Triệu chứng',
-      emotional_support: 'Hỗ trợ Tâm lý',
-      education: 'Giáo dục Bệnh nhân',
-      other: 'Khác'
-    };
-    return types[type] || type;
+  // Helper functions for data transformation
+  const calculatePostOpDay = (surgeryDate) => {
+    if (!surgeryDate) return 0;
+    const surgery = new Date(surgeryDate);
+    const today = new Date();
+    const diffTime = Math.abs(today - surgery);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
-  const getPriorityColor = (priority) => {
+  const calculateTodayTasks = (customer) => {
+    // This would be calculated from the customer's care journey activities
+    // For now, return a mock value
+    return Math.floor(Math.random() * 5) + 1;
+  };
+
+  const getNextAppointment = (customer) => {
+    // This would be fetched from customer's appointments
+    // For now, return null
+    return null;
+  };
+
+  const calculateProgress = (customer) => {
+    // This would be calculated based on completed activities vs total activities
+    // For now, return a mock value
+    return Math.floor(Math.random() * 100);
+  };
+
+  // Load customer activities when a customer is selected
+  const loadCustomerActivities = async (customerId) => {
+    try {
+      const activitiesData = await customerCareService.getCustomerActivities(customerId);
+      
+      // Transform activities data to group by day
+      const groupedActivities = {};
+      
+      // Handle different response formats
+      const activitiesList = activitiesData.results || activitiesData.data || [];
+      
+      activitiesList.forEach(activity => {
+        const day = activity.days_post_op || 1;
+        if (!groupedActivities[day]) {
+          groupedActivities[day] = [];
+        }
+        
+        groupedActivities[day].push({
+          id: activity.id,
+          name: activity.name,
+          description: activity.description,
+          type: activity.action_type,
+          status: activity.status,
+          dueDate: activity.scheduled_date,
+          priority: activity.priority || 'medium',
+          requiresApproval: activity.approval_type !== 'none'
+        });
+      });
+      
+      setActivities(groupedActivities);
+    } catch (error) {
+      console.error('Error loading customer activities:', error);
+      message.error('Lỗi khi tải hoạt động của khách hàng');
+    }
+  };
+
+  // Load customer appointments when a customer is selected
+  const loadCustomerAppointments = async (customerId) => {
+    try {
+      const appointmentsData = await customerService.getCustomerAppointments(customerId);
+      // Transform appointments data to match frontend format
+      const transformedAppointments = appointmentsData.map(appointment => ({
+        id: appointment.id,
+        type: appointment.appointment_type || 'tai_kham',
+        date: appointment.appointment_date,
+        time: appointment.appointment_time,
+        doctor: appointment.doctor?.user?.first_name ? 
+          `BS. ${appointment.doctor.user.first_name} ${appointment.doctor.user.last_name || ''}`.trim() : 
+          'Chưa gán bác sĩ',
+        status: appointment.status || 'pending',
+        notes: appointment.purpose || appointment.notes || ''
+      }));
+      setAppointments(transformedAppointments);
+    } catch (error) {
+      console.error('Error loading customer appointments:', error);
+      message.error('Lỗi khi tải lịch hẹn của khách hàng');
+    }
+  };
+
+  // Handle customer selection
+  const handleCustomerSelect = async (customer) => {
+    setSelectedCustomer(customer);
+    setDrawerVisible(true);
+    
+    // Load customer-specific data
+    await Promise.all([
+      loadCustomerActivities(customer.id),
+      loadCustomerAppointments(customer.id)
+    ]);
+  };
+
+  // Filter functions
+  const filteredCustomers = customers.filter(customer => {
+    if (doctorFilter && customer.doctor !== doctorFilter) return false;
+    if (surgeryTypeFilter && customer.surgeryType !== surgeryTypeFilter) return false;
+    if (postOpDayFilter && customer.postOpDay !== postOpDayFilter) return false;
+    return true;
+  });
+
+  // Activity Management
+  const handleAddActivity = (day) => {
+    setEditingActivity(null);
+    activityForm.resetFields();
+    setActivityModalVisible(true);
+  };
+
+  const handleEditActivity = (activity) => {
+    setEditingActivity(activity);
+    activityForm.setFieldsValue({
+      ...activity,
+      dueDate: activity.dueDate ? dayjs(activity.dueDate) : null
+    });
+    setActivityModalVisible(true);
+  };
+
+  const handleDeleteActivity = async (id) => {
+    try {
+      await customerCareService.deleteActivity(id);
+      message.success('Đã xóa hoạt động');
+      // Reload activities after deletion
+      if (selectedCustomer) {
+        await loadCustomerActivities(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      message.error('Lỗi khi xóa hoạt động');
+    }
+  };
+
+  const handleDuplicateActivity = async (activity) => {
+    try {
+      const duplicateData = {
+        ...activity,
+        name: `${activity.name} (Bản sao)`,
+        customer: selectedCustomer.id
+      };
+      await customerCareService.createActivity(duplicateData);
+      message.success('Đã nhân bản hoạt động');
+      // Reload activities after duplication
+      if (selectedCustomer) {
+        await loadCustomerActivities(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error duplicating activity:', error);
+      message.error('Lỗi khi nhân bản hoạt động');
+    }
+  };
+
+  const handleActivityModalOk = async () => {
+    try {
+      const values = await activityForm.validateFields();
+      
+      const activityData = {
+        ...values,
+        customer: selectedCustomer.id,
+        scheduled_date: values.dueDate.format('YYYY-MM-DD'),
+        action_type: values.type,
+        priority: values.priority,
+        status: values.status,
+        approval_type: values.requiresApproval ? 'nurse' : 'none'
+      };
+
+      if (editingActivity) {
+        await customerCareService.updateActivity(editingActivity.id, activityData);
+        message.success('Cập nhật hoạt động thành công');
+      } else {
+        await customerCareService.createActivity(activityData);
+        message.success('Thêm hoạt động mới thành công');
+      }
+      
+      setActivityModalVisible(false);
+      activityForm.resetFields();
+      
+      // Reload activities after save
+      if (selectedCustomer) {
+        await loadCustomerActivities(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error saving activity:', error);
+      message.error('Lỗi khi lưu hoạt động');
+    }
+  };
+
+  // Appointment Management
+  const handleAddAppointment = () => {
+    setEditingAppointment(null);
+    appointmentForm.resetFields();
+    setAppointmentModalVisible(true);
+  };
+
+  const handleEditAppointment = (appointment) => {
+    setEditingAppointment(appointment);
+    appointmentForm.setFieldsValue({
+      ...appointment,
+      date: appointment.date ? dayjs(appointment.date) : null,
+      time: appointment.time ? dayjs(appointment.time, 'HH:mm') : null
+    });
+    setAppointmentModalVisible(true);
+  };
+
+  const handleDeleteAppointment = async (id) => {
+    try {
+      await customerCareService.deleteAppointment(id);
+      message.success('Đã xóa lịch hẹn');
+      // Reload appointments after deletion
+      if (selectedCustomer) {
+        await loadCustomerAppointments(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      message.error('Lỗi khi xóa lịch hẹn');
+    }
+  };
+
+  const handleAppointmentModalOk = async () => {
+    try {
+      const values = await appointmentForm.validateFields();
+      
+      const appointmentData = {
+        ...values,
+        customer: selectedCustomer.id,
+        appointment_date: values.date.format('YYYY-MM-DD'),
+        appointment_time: values.time.format('HH:mm'),
+        appointment_type: values.type,
+        status: values.status,
+        purpose: values.notes
+      };
+
+      if (editingAppointment) {
+        await customerCareService.updateAppointment(editingAppointment.id, appointmentData);
+        message.success('Cập nhật lịch hẹn thành công');
+      } else {
+        await customerCareService.createAppointment(appointmentData);
+        message.success('Thêm lịch hẹn mới thành công');
+      }
+      
+      setAppointmentModalVisible(false);
+      appointmentForm.resetFields();
+      
+      // Reload appointments after save
+      if (selectedCustomer) {
+        await loadCustomerAppointments(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error saving appointment:', error);
+      message.error('Lỗi khi lưu lịch hẹn');
+    }
+  };
+
+  // Helper functions
+  const getActivityStatusColor = (status) => {
     const colors = {
-      low: 'blue',
-      medium: 'orange',
-      high: 'red',
-      urgent: 'purple'
-    };
-    return colors[priority] || 'default';
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      scheduled: 'blue',
-      in_progress: 'orange',
       completed: 'green',
-      cancelled: 'red',
-      missed: 'gray'
+      in_progress: 'blue',
+      pending: 'orange',
+      cancelled: 'red'
     };
     return colors[status] || 'default';
   };
 
-  const getStatusDisplay = (status) => {
-    const statuses = {
-      scheduled: 'Đã lên lịch',
+  const getActivityStatusText = (status) => {
+    const texts = {
+      completed: 'Hoàn thành',
       in_progress: 'Đang thực hiện',
-      completed: 'Đã hoàn thành',
-      cancelled: 'Đã hủy',
-      missed: 'Đã bỏ lỡ'
+      pending: 'Chờ thực hiện',
+      cancelled: 'Đã hủy'
     };
-    return statuses[status] || status;
+    return texts[status] || status;
   };
 
-  const handleAddNew = () => {
-    setSelectedCare(null);
-    form.resetFields();
-    setModalVisible(true);
+  const getAppointmentStatusColor = (status) => {
+    const colors = {
+      confirmed: 'green',
+      pending: 'orange',
+      completed: 'blue',
+      cancelled: 'red'
+    };
+    return colors[status] || 'default';
   };
 
-  const handleEdit = (record) => {
-    setSelectedCare(record);
-    form.setFieldsValue({
-      ...record,
-      scheduled_date: record.scheduled_date ? dayjs(record.scheduled_date) : null,
-      scheduled_time: record.scheduled_time ? dayjs(record.scheduled_time, 'HH:mm:ss') : null,
-      follow_up_date: record.follow_up_date ? dayjs(record.follow_up_date) : null
-    });
-    setModalVisible(true);
+  const getAppointmentStatusText = (status) => {
+    const texts = {
+      confirmed: 'Đã xác nhận',
+      pending: 'Chờ xác nhận',
+      completed: 'Đã hoàn thành',
+      cancelled: 'Đã hủy'
+    };
+    return texts[status] || status;
   };
 
-  const handleDelete = (id) => {
-    // In real app, call API to delete
-    setCustomerCareData(customerCareData.filter(item => item.id !== id));
-    message.success('Đã xóa hoạt động chăm sóc');
-  };
-
-  const handleModalOk = () => {
-    form.validateFields().then(values => {
-      const careData = {
-        ...values,
-        scheduled_date: values.scheduled_date ? values.scheduled_date.format('YYYY-MM-DD') : null,
-        scheduled_time: values.scheduled_time ? values.scheduled_time.format('HH:mm:ss') : null,
-        follow_up_date: values.follow_up_date ? values.follow_up_date.format('YYYY-MM-DD') : null
-      };
-
-      if (selectedCare) {
-        // Update existing
-        setCustomerCareData(customerCareData.map(item => 
-          item.id === selectedCare.id ? { ...item, ...careData } : item
-        ));
-        message.success('Cập nhật hoạt động chăm sóc thành công');
-      } else {
-        // Add new
-        const newCare = {
-          id: Date.now(),
-          ...careData,
-          created_at: new Date().toISOString(),
-          status: 'scheduled'
-        };
-        setCustomerCareData([...customerCareData, newCare]);
-        message.success('Thêm hoạt động chăm sóc thành công');
-      }
-
-      setModalVisible(false);
-      form.resetFields();
-    });
-  };
-
-  const handleStatusChange = (id, newStatus) => {
-    setCustomerCareData(customerCareData.map(item =>
-      item.id === id ? { ...item, status: newStatus } : item
-    ));
-    message.success('Cập nhật trạng thái thành công');
-  };
-
-  const columns = [
+  // Table columns
+  const customerColumns = [
     {
-      title: 'Khách hàng',
-      dataIndex: 'customer',
-      key: 'customer',
-      render: (customer) => (
+      title: 'Tên khách hàng',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text, record) => (
         <Space>
-          <UserOutlined />
-          <span>{customer?.name}</span>
+          <Avatar size="small" icon={<UserOutlined />} />
+          <Text strong>{text}</Text>
         </Space>
-      )
+      ),
     },
     {
-      title: 'Loại chăm sóc',
-      dataIndex: 'care_type',
-      key: 'care_type',
-      render: (type) => getCareTypeDisplay(type)
+      title: 'Ngày hậu phẫu',
+      dataIndex: 'postOpDay',
+      key: 'postOpDay',
+      render: (day) => <Tag color="blue">Day {day}</Tag>,
     },
     {
-      title: 'Tiêu đề',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true
+      title: 'Task hôm nay',
+      dataIndex: 'todayTasks',
+      key: 'todayTasks',
+      render: (count) => (
+        <Badge count={count} showZero={false} />
+      ),
     },
     {
-      title: 'Y tá phụ trách',
-      dataIndex: 'assigned_nurse',
-      key: 'assigned_nurse',
-      render: (nurse) => nurse?.name || 'Chưa phân công'
+      title: 'Tái khám tiếp theo',
+      dataIndex: 'nextAppointment',
+      key: 'nextAppointment',
+      render: (date) => date ? dayjs(date).format('DD/MM - HH:mm') : '-',
     },
     {
-      title: 'Ưu tiên',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority) => (
-        <Tag color={getPriorityColor(priority)}>
-          {priority === 'low' ? 'Thấp' : 
-           priority === 'medium' ? 'Trung bình' : 
-           priority === 'high' ? 'Cao' : 'Khẩn cấp'}
-        </Tag>
-      )
-    },
-    {
-      title: 'Ngày',
-      dataIndex: 'scheduled_date',
-      key: 'scheduled_date',
-      render: (date) => dayjs(date).format('DD/MM/YYYY')
-    },
-    {
-      title: 'Giờ',
-      dataIndex: 'scheduled_time',
-      key: 'scheduled_time',
-      render: (time) => time ? time.substring(0, 5) : ''
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status, record) => (
-        <Select
-          value={status}
-          onChange={(value) => handleStatusChange(record.id, value)}
-          style={{ width: 120 }}
-        >
-          <Option value="scheduled">Đã lên lịch</Option>
-          <Option value="in_progress">Đang thực hiện</Option>
-          <Option value="completed">Đã hoàn thành</Option>
-          <Option value="cancelled">Đã hủy</Option>
-        </Select>
-      )
+      title: 'Tiến độ',
+      dataIndex: 'progress',
+      key: 'progress',
+      render: (progress) => (
+        <Progress percent={progress} size="small" />
+      ),
     },
     {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            Xem
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            Sửa
-          </Button>
-          <Popconfirm
-            title="Bạn có chắc chắn muốn xóa?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Có"
-            cancelText="Không"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Xóa
-            </Button>
-          </Popconfirm>
-        </Space>
-      )
-    }
+        <Button 
+          type="link" 
+          icon={<EyeOutlined />}
+          onClick={() => handleCustomerSelect(record)}
+        >
+          Chi tiết
+        </Button>
+      ),
+    },
   ];
 
-  const stats = {
-    total: customerCareData.length,
-    scheduled: customerCareData.filter(item => item.status === 'scheduled').length,
-    inProgress: customerCareData.filter(item => item.status === 'in_progress').length,
-    completed: customerCareData.filter(item => item.status === 'completed').length
-  };
-
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Tổng số hoạt động"
-                value={stats.total}
-                prefix={<TeamOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Đã lên lịch"
-                value={stats.scheduled}
-                valueStyle={{ color: '#1890ff' }}
-                prefix={<CalendarOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Đang thực hiện"
-                value={stats.inProgress}
-                valueStyle={{ color: '#faad14' }}
-                prefix={<ClockCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Đã hoàn thành"
-                value={stats.completed}
-                valueStyle={{ color: '#52c41a' }}
-                prefix={<UserOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </div>
+    <div style={{ padding: '0 24px' }}>
+      {/* Header */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Title level={2} style={{ margin: 0 }}>Admin Dashboard - Chăm sóc Khách hàng</Title>
+              <Space>
+                <Button icon={<ReloadOutlined />} onClick={loadInitialData}>
+                  Làm mới
+                </Button>
+                <Button type="primary" icon={<UserAddOutlined />}>
+                  Thêm khách hàng
+                </Button>
+              </Space>
+            </div>
+          </Card>
+        </Col>
+      </Row>
 
-      <Card
-        title="Quản lý Chăm sóc Khách hàng"
+      {/* Quick Filters */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <Card title="Bộ lọc nhanh" size="small">
+            <Space wrap>
+              <Select
+                placeholder="Theo bác sĩ"
+                style={{ width: 150 }}
+                onChange={setDoctorFilter}
+                allowClear
+              >
+                <Option value="BS. Trần Văn X">BS. Trần Văn X</Option>
+                <Option value="BS. Lê Thị Y">BS. Lê Thị Y</Option>
+              </Select>
+              
+              <Select
+                placeholder="Theo loại phẫu thuật"
+                style={{ width: 180 }}
+                onChange={setSurgeryTypeFilter}
+                allowClear
+              >
+                <Option value="Nâng ngực">Nâng ngực</Option>
+                <Option value="Nâng mũi">Nâng mũi</Option>
+                <Option value="Hút mỡ">Hút mỡ</Option>
+              </Select>
+              
+              <Select
+                placeholder="Theo ngày hậu phẫu"
+                style={{ width: 150 }}
+                onChange={setPostOpDayFilter}
+                allowClear
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map(day => (
+                  <Option key={day} value={day}>Day {day}</Option>
+                ))}
+              </Select>
+              
+              <Select
+                placeholder="Theo trạng thái task"
+                style={{ width: 180 }}
+                onChange={setTaskStatusFilter}
+                allowClear
+              >
+                <Option value="pending">Chờ</Option>
+                <Option value="in_progress">Đang làm</Option>
+                <Option value="completed">Hoàn thành</Option>
+              </Select>
+              
+              <Button icon={<FilterOutlined />} type="primary">
+                Áp dụng
+              </Button>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Patients Table */}
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <Card 
+            title={`Danh sách khách hàng (${filteredCustomers.length})`}
+            extra={
+              <Space>
+                <Search placeholder="Tìm kiếm khách hàng..." style={{ width: 200 }} />
+                <Button icon={<SettingOutlined />}>Cài đặt cột</Button>
+              </Space>
+            }
+          >
+              <Table
+              columns={customerColumns}
+              dataSource={filteredCustomers}
+              rowKey="id"
+              loading={loading}
+              pagination={{ pageSize: 10 }}
+              onRow={(record) => ({
+                onClick: () => handleCustomerSelect(record),
+                style: { cursor: 'pointer' }
+              })}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Customer Detail Drawer */}
+      <Drawer
+        title={`Chi tiết khách hàng: ${selectedCustomer?.name}`}
+        placement="right"
+        width={800}
+        onClose={() => setDrawerVisible(false)}
+        open={drawerVisible}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddNew}>
-            Thêm mới
-          </Button>
+          <Space>
+            <Button icon={<EditOutlined />}>Chỉnh sửa</Button>
+            <Button type="primary" icon={<PlusOutlined />}>Thêm Task</Button>
+          </Space>
         }
       >
-        <Table
-          columns={columns}
-          dataSource={customerCareData}
-          loading={loading}
-          rowKey="id"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} của ${total} hoạt động`
-          }}
-        />
-      </Card>
+        {selectedCustomer && (
+          <div>
+            {/* Patient Info Summary */}
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Text strong>Loại phẫu thuật:</Text>
+                  <br />
+                  <Tag color="blue">{selectedCustomer.surgeryType}</Tag>
+                </Col>
+                <Col span={8}>
+                  <Text strong>Ngày hậu phẫu:</Text>
+                  <br />
+                  <Tag color="green">Day {selectedCustomer.postOpDay}</Tag>
+                </Col>
+                <Col span={8}>
+                  <Text strong>Bác sĩ phụ trách:</Text>
+                  <br />
+                  <Text>{selectedCustomer.doctor}</Text>
+                </Col>
+              </Row>
+            </Card>
 
-      <Modal
-        title={selectedCare ? 'Chỉnh sửa Hoạt động Chăm sóc' : 'Thêm Hoạt động Chăm sóc Mới'}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-        }}
-        width={700}
-        okText={selectedCare ? 'Cập nhật' : 'Thêm mới'}
-        cancelText="Hủy"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          name="customerCareForm"
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="customer"
-                label="Khách hàng"
-                rules={[{ required: true, message: 'Vui lòng chọn khách hàng' }]}
-              >
-                <Select placeholder="Chọn khách hàng">
-                  <Option value={1}>Nguyễn Văn A</Option>
-                  <Option value={2}>Trần Thị B</Option>
-                  <Option value={3}>Lê Văn C</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="care_type"
-                label="Loại chăm sóc"
-                rules={[{ required: true, message: 'Vui lòng chọn loại chăm sóc' }]}
-              >
-                <Select placeholder="Chọn loại chăm sóc">
-                  <Option value="daily_check">Kiểm tra Hàng ngày</Option>
-                  <Option value="medication_reminder">Nhắc uống Thuốc</Option>
-                  <Option value="follow_up">Theo dõi</Option>
-                  <Option value="appointment_reminder">Nhắc lịch hẹn</Option>
-                  <Option value="symptom_check">Kiểm tra Triệu chứng</Option>
-                  <Option value="emotional_support">Hỗ trợ Tâm lý</Option>
-                  <Option value="education">Giáo dục Bệnh nhân</Option>
-                  <Option value="other">Khác</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="title"
-            label="Tiêu đề"
-            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
-          >
-            <Input placeholder="Nhập tiêu đề hoạt động chăm sóc" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Mô tả"
-            rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
-          >
-            <TextArea
-              rows={3}
-              placeholder="Nhập mô tả chi tiết về hoạt động chăm sóc"
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="assigned_nurse"
-                label="Y tá phụ trách"
-              >
-                <Select placeholder="Chọn y tá">
-                  <Option value={1}>Y tá Mai</Option>
-                  <Option value={2}>Y tá Lan</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="priority"
-                label="Mức độ ưu tiên"
-                initialValue="medium"
-              >
-                <Select>
-                  <Option value="low">Thấp</Option>
-                  <Option value="medium">Trung bình</Option>
-                  <Option value="high">Cao</Option>
-                  <Option value="urgent">Khẩn cấp</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="duration_minutes"
-                label="Thời lượng (phút)"
-                initialValue={15}
-              >
-                <Input type="number" min={5} max={480} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="scheduled_date"
-                label="Ngày thực hiện"
-                rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="scheduled_time"
-                label="Giờ thực hiện"
-                rules={[{ required: true, message: 'Vui lòng chọn giờ' }]}
-              >
-                <TimePicker style={{ width: '100%' }} format="HH:mm" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="notes"
-            label="Ghi chú"
-          >
-            <TextArea
-              rows={2}
-              placeholder="Nhập ghi chú (nếu có)"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="requires_follow_up"
-            valuePropName="checked"
-            initialValue={false}
-          >
-            <Checkbox>Cần theo dõi sau khi hoàn thành</Checkbox>
-          </Form.Item>
-
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.requires_follow_up !== currentValues.requires_follow_up}
-          >
-            {({ getFieldValue }) =>
-              getFieldValue('requires_follow_up') ? (
-                <Form.Item
-                  name="follow_up_date"
-                  label="Ngày theo dõi"
-                  rules={[{ required: true, message: 'Vui lòng chọn ngày theo dõi' }]}
+            {/* Tabs for Activities and Appointments */}
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Button 
+                  type={activeTab === 'activities' ? 'primary' : 'default'}
+                  onClick={() => setActiveTab('activities')}
                 >
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-              ) : null
-            }
+                  Hoạt động Hàng ngày
+                </Button>
+                <Button 
+                  type={activeTab === 'appointments' ? 'primary' : 'default'}
+                  onClick={() => setActiveTab('appointments')}
+                >
+                  Lịch tái khám
+                </Button>
+              </Space>
+            </div>
+
+            {/* Activities Tab */}
+            {activeTab === 'activities' && (
+              <div>
+                <Collapse defaultActiveKey={['1']}>
+                  {Object.entries(activities).map(([day, dayActivities]) => (
+                    <Panel 
+                      header={`Ngày ${day}`} 
+                      key={day}
+                      extra={
+                        <Button 
+                          size="small" 
+                          icon={<PlusOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddActivity(day);
+                          }}
+                        >
+                          Thêm Task
+                        </Button>
+                      }
+                    >
+                      <List
+                        dataSource={dayActivities}
+                        renderItem={(activity) => (
+                          <List.Item
+                            actions={[
+                              <Button 
+                                type="link" 
+                                icon={<EditOutlined />} 
+                                onClick={() => handleEditActivity(activity)}
+                              />,
+                              <Button 
+                                type="link" 
+                                icon={<CopyOutlined />}
+                                onClick={() => handleDuplicateActivity(activity)}
+                              >
+                                Nhân bản
+                              </Button>,
+                              <Popconfirm
+                                title="Xóa hoạt động"
+                                description="Bạn có chắc chắn muốn xóa hoạt động này?"
+                                onConfirm={() => handleDeleteActivity(activity.id)}
+                                okText="Có"
+                                cancelText="Không"
+                              >
+                                <Button type="link" danger icon={<DeleteOutlined />} />
+                              </Popconfirm>
+                            ]}
+                          >
+                            <List.Item.Meta
+                              avatar={
+                                <Avatar 
+                                  style={{ 
+                                    backgroundColor: getActivityStatusColor(activity.status),
+                                    color: 'white'
+                                  }}
+                                >
+                                  {getActivityStatusText(activity.status).charAt(0)}
+                                </Avatar>
+                              }
+                              title={
+                                <Space>
+                                  <Text strong>{activity.name}</Text>
+                                  <Tag color={getActivityStatusColor(activity.status)}>
+                                    {getActivityStatusText(activity.status)}
+                                  </Tag>
+                                  {activity.priority === 'high' && (
+                                    <Tag color="red">Ưu tiên cao</Tag>
+                                  )}
+                                </Space>
+                              }
+                              description={
+                                <div>
+                                  <Text type="secondary">{activity.description}</Text>
+                                  <br />
+                                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                                    Hạn: {dayjs(activity.dueDate).format('DD/MM/YYYY')}
+                                  </Text>
+                                </div>
+                              }
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    </Panel>
+                  ))}
+                </Collapse>
+              </div>
+            )}
+
+            {/* Appointments Tab */}
+            {activeTab === 'appointments' && (
+              <div>
+                <div style={{ textAlign: 'right', marginBottom: 16 }}>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={handleAddAppointment}
+                  >
+                    Thêm lịch tái khám
+                  </Button>
+                </div>
+                
+                <Timeline>
+                  {appointments.map((appointment) => (
+                    <Timeline.Item
+                      key={appointment.id}
+                      color={getAppointmentStatusColor(appointment.status)}
+                      dot={
+                        appointment.status === 'confirmed' ? <CheckCircleOutlined /> :
+                        appointment.status === 'completed' ? <CheckCircleOutlined /> :
+                        <ClockCircleOutlined />
+                      }
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <Text strong>
+                            {dayjs(appointment.date).format('DD/MM')} - {appointment.time}
+                          </Text>
+                          <br />
+                          <Text type="secondary">
+                            {appointment.type === 'tai_kham' ? 'Tái khám' : 'Cắt chỉ'}
+                          </Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            Bác sĩ: {appointment.doctor}
+                          </Text>
+                          {appointment.notes && (
+                            <>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                Ghi chú: {appointment.notes}
+                              </Text>
+                            </>
+                          )}
+                        </div>
+                        <Space>
+                          <Tag color={getAppointmentStatusColor(appointment.status)}>
+                            {getAppointmentStatusText(appointment.status)}
+                          </Tag>
+                          <Button 
+                            type="link" 
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditAppointment(appointment)}
+                          />
+                          <Popconfirm
+                            title="Xóa lịch hẹn"
+                            description="Bạn có chắc chắn muốn xóa lịch hẹn này?"
+                            onConfirm={() => handleDeleteAppointment(appointment.id)}
+                            okText="Có"
+                            cancelText="Không"
+                          >
+                            <Button type="link" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        </Space>
+                      </div>
+                    </Timeline.Item>
+                  ))}
+                </Timeline>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
+
+      {/* Activity Modal */}
+      <Modal
+        title={editingActivity ? 'Sửa Hoạt động' : 'Thêm Hoạt động Mới'}
+        open={activityModalVisible}
+        onOk={handleActivityModalOk}
+        onCancel={() => setActivityModalVisible(false)}
+        width={600}
+      >
+        <Form form={activityForm} layout="vertical">
+          <Form.Item name="name" label="Tên hoạt động" rules={[{ required: true }]}>
+            <Input placeholder="Nhập tên hoạt động" />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả" rules={[{ required: true }]}>
+            <TextArea placeholder="Nhập mô tả hoạt động" rows={3} />
+          </Form.Item>
+          <Form.Item name="type" label="Loại hoạt động" rules={[{ required: true }]}>
+            <Select placeholder="Chọn loại hoạt động">
+              <Option value="photo_upload">Chụp ảnh</Option>
+              <Option value="video_upload">Quay video</Option>
+              <Option value="phone_call">Gọi điện</Option>
+              <Option value="text_feedback">Phản hồi văn bản</Option>
+              <Option value="checkup">Kiểm tra</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="dueDate" label="Hạn hoàn thành" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="priority" label="Mức độ ưu tiên">
+            <Select placeholder="Chọn mức ưu tiên">
+              <Option value="low">Thấp</Option>
+              <Option value="medium">Trung bình</Option>
+              <Option value="high">Cao</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái">
+            <Select placeholder="Chọn trạng thái">
+              <Option value="pending">Chờ thực hiện</Option>
+              <Option value="in_progress">Đang thực hiện</Option>
+              <Option value="completed">Hoàn thành</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="requiresApproval" valuePropName="checked">
+            <Switch checkedChildren="Cần phê duyệt" unCheckedChildren="Không cần phê duyệt" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Appointment Modal */}
+      <Modal
+        title={editingAppointment ? 'Sửa Lịch hẹn' : 'Thêm Lịch hẹn Mới'}
+        open={appointmentModalVisible}
+        onOk={handleAppointmentModalOk}
+        onCancel={() => setAppointmentModalVisible(false)}
+        width={600}
+      >
+        <Form form={appointmentForm} layout="vertical">
+          <Form.Item name="type" label="Loại lịch hẹn" rules={[{ required: true }]}>
+            <Select placeholder="Chọn loại lịch hẹn">
+              <Option value="tai_kham">Tái khám</Option>
+              <Option value="cat_chi">Cắt chỉ</Option>
+              <Option value="kiem_tra">Kiểm tra định kỳ</Option>
+              <Option value="tu_van">Tư vấn</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="doctor" label="Bác sĩ" rules={[{ required: true }]}>
+            <Select placeholder="Chọn bác sĩ">
+              <Option value="BS. Trần Văn X">BS. Trần Văn X</Option>
+              <Option value="BS. Lê Thị Y">BS. Lê Thị Y</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="date" label="Ngày hẹn" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="time" label="Giờ hẹn" rules={[{ required: true }]}>
+            <TimePicker style={{ width: '100%' }} format="HH:mm" />
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái">
+            <Select placeholder="Chọn trạng thái">
+              <Option value="pending">Chờ xác nhận</Option>
+              <Option value="confirmed">Đã xác nhận</Option>
+              <Option value="completed">Đã hoàn thành</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú">
+            <TextArea placeholder="Nhập ghi chú (nếu có)" rows={3} />
           </Form.Item>
         </Form>
       </Modal>
