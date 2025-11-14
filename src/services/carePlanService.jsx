@@ -303,11 +303,11 @@ class CarePlanService {
   transformTemplateForBackend(frontendTemplate) {
     // Map frontend procedure_type to backend surgery_type
     const surgeryTypeMap = {
-      'nang_nguc': 'breast_augmentation',
-      'nang_mui': 'rhinoplasty',
-      'hut_mo': 'liposuction',
-      'treo_nguc': 'breast_reduction',
-      'khac': 'other'
+      'nang_nguc': 'nang_nguc',
+      'nang_mui': 'nang_mui',
+      'treo_nguc': 'treo_nguc',
+      'treo_nguc': 'treo_nguc',
+      'khac': 'khac'
     };
     
     return {
@@ -355,11 +355,11 @@ class CarePlanService {
 
     // Map backend surgery_type to frontend procedure_type
     const procedureTypeMap = {
-      'breast_augmentation': 'nang_nguc',
-      'rhinoplasty': 'nang_mui',
-      'liposuction': 'hut_mo',
-      'breast_reduction': 'treo_nguc',
-      'other': 'khac'
+      'nang_nguc': 'nang_nguc',
+      'nang_mui': 'nang_mui',
+      'hut_mo': 'hut_mo',
+      'treo_nguc': 'treo_nguc',
+      'khac': 'khac'
     };
     
     return {

@@ -410,7 +410,7 @@ const CarePlanTemplates = () => {
       key: 'procedure_type',
       render: (type) => (
         <Tag color="blue">
-          {type === 'nang_nguc' || type === 'breast_augmentation' ? 'Nâng ngực' : 
+          {type === 'nang_nguc' || type === 'nang_nguc' ? 'Nâng ngực' : 
            type === 'nang_mui' ? 'Nâng mũi' : 
            type === 'hut_mo' ? 'Hút mỡ' : 'Khác'}
         </Tag>
