@@ -37,7 +37,7 @@ const Staff = () => {
     {
       id: 1,
       name: 'BS. Trần Văn X',
-      email: 'tranvan.x@beautycare.com',
+      email: 'tranvan.x@beautycare',
       phone: '0901111111',
       role: 'doctor',
       specialty: 'Phẫu thuật thẩm mỹ',
@@ -47,7 +47,7 @@ const Staff = () => {
     {
       id: 2,
       name: 'BS. Lê Thị Y',
-      email: 'lethi.y@beautycare.com',
+      email: 'lethi.y@beautycare',
       phone: '0902222222',
       role: 'doctor',
       specialty: 'Da liễu thẩm mỹ',
@@ -57,7 +57,7 @@ const Staff = () => {
     {
       id: 3,
       name: 'YT. Nguyễn Thị A',
-      email: 'nguyenthi.a@beautycare.com',
+      email: 'nguyenthi.a@beautycare',
       phone: '0903333333',
       role: 'nurse',
       specialty: 'Chăm sóc hậu phẫu',
