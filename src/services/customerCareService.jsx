@@ -8,8 +8,8 @@ const customerCareService = {
    */
   async getCustomerActivities(customerId) {
     try {
-      // Use legacy endpoint that works without database errors
-      const response = await api.get(`/daily-activities/`);
+      // Use the new API endpoint that gets activities by customer ID
+      const response = await api.get(`/customers/${customerId}/daily-activities/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching customer activities:', error);
@@ -41,8 +41,8 @@ const customerCareService = {
    */
   async updateActivity(activityId, activityData) {
     try {
-      // Use legacy endpoint that works without database errors
-      const response = await api.put(`/daily-activities/${activityId}/`, activityData);
+      // Use the new API endpoint that allows admin and customer care staff to update activities
+      const response = await api.put(`/care-activities/daily-activities/${activityId}/update_activity/`, activityData);
       return response.data;
     } catch (error) {
       console.error('Error updating activity:', error);
@@ -185,6 +185,36 @@ const customerCareService = {
     } catch (error) {
       console.error('Error fetching dashboard overview:', error);
       throw new Error('Không thể tải thống kê dashboard.');
+    }
+  },
+
+  /**
+   * Create a new daily care activity using the new API
+   * @param {Object} activityData - Activity data including care_journey_id
+   * @returns {Promise} Created activity
+   */
+  async createDailyCareActivity(activityData) {
+    try {
+      const response = await api.post('/daily-activities/create/', activityData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating daily care activity:', error);
+      throw new Error('Không thể tạo hoạt động mới.');
+    }
+  },
+
+  /**
+   * Get care journeys for a customer
+   * @param {number} customerId - Customer ID
+   * @returns {Promise} List of care journeys
+   */
+  async getCustomerCareJourneys(customerId) {
+    try {
+      const response = await api.get(`/customers/${customerId}/care-journeys/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer care journeys:', error);
+      throw new Error('Không thể tải lộ trình chăm sóc của khách hàng.');
     }
   }
 };

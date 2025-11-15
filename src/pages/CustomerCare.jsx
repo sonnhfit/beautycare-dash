@@ -93,12 +93,15 @@ const CustomerCare = () => {
   // Modal states
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [appointmentModalVisible, setAppointmentModalVisible] = useState(false);
+  const [dailyCareActivityModalVisible, setDailyCareActivityModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(null);
 
   // Forms
   const [activityForm] = Form.useForm();
   const [appointmentForm] = Form.useForm();
+  const [dailyCareActivityForm] = Form.useForm();
 
   useEffect(() => {
     loadInitialData();
@@ -247,6 +250,7 @@ const CustomerCare = () => {
 
   // Activity Management
   const handleAddActivity = (day) => {
+    setSelectedDay(day);
     setEditingActivity(null);
     activityForm.resetFields();
     setActivityModalVisible(true);
@@ -296,23 +300,42 @@ const CustomerCare = () => {
 
   const handleActivityModalOk = async () => {
     try {
+      console.log('Starting handleActivityModalOk...');
       const values = await activityForm.validateFields();
+      console.log('Form values validated:', values);
       
+      // Get care journey for this customer
+      console.log('Getting care journey for customer:', selectedCustomer.id);
+      const careJourneyId = await getCareJourneyForCustomer(selectedCustomer.id);
+      console.log('Care journey ID:', careJourneyId);
+      
+      if (!careJourneyId) {
+        message.error('Không tìm thấy lộ trình chăm sóc cho khách hàng này');
+        return;
+      }
+
       const activityData = {
-        ...values,
-        customer: selectedCustomer.id,
+        name: values.name,
+        description: values.description,
+        care_journey_id: careJourneyId,
+        days_post_op: parseInt(selectedDay || 1),
         scheduled_date: values.dueDate.format('YYYY-MM-DD'),
         action_type: values.type,
         priority: values.priority,
-        status: values.status,
+        status: values.status || 'scheduled', // Default to 'scheduled' instead of 'pending'
         approval_type: values.requiresApproval ? 'nurse' : 'none'
       };
 
+      console.log('Creating activity with data:', activityData);
+
       if (editingActivity) {
+        console.log('Updating existing activity:', editingActivity.id);
         await customerCareService.updateActivity(editingActivity.id, activityData);
         message.success('Cập nhật hoạt động thành công');
       } else {
-        await customerCareService.createActivity(activityData);
+        console.log('Creating new activity...');
+        await customerCareService.createDailyCareActivity(activityData);
+        console.log('Activity created successfully');
         message.success('Thêm hoạt động mới thành công');
       }
       
@@ -325,7 +348,8 @@ const CustomerCare = () => {
       }
     } catch (error) {
       console.error('Error saving activity:', error);
-      message.error('Lỗi khi lưu hoạt động');
+      console.error('Error details:', error.response?.data || error.message);
+      message.error('Lỗi khi lưu hoạt động: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -434,6 +458,94 @@ const CustomerCare = () => {
       cancelled: 'Đã hủy'
     };
     return texts[status] || status;
+  };
+
+  // Daily Care Activity Management
+  const handleAddDailyCareActivity = (day) => {
+    setSelectedDay(day);
+    dailyCareActivityForm.resetFields();
+    dailyCareActivityForm.setFieldsValue({
+      days_post_op: parseInt(day),
+      scheduled_date: dayjs().add(parseInt(day), 'day'),
+      status: 'scheduled',
+      approval_type: 'none'
+    });
+    setDailyCareActivityModalVisible(true);
+  };
+
+  const handleDailyCareActivityModalOk = async () => {
+    try {
+      const values = await dailyCareActivityForm.validateFields();
+      
+      // Get care journey for this customer
+      const careJourneyId = await getCareJourneyForCustomer(selectedCustomer.id);
+      if (!careJourneyId) {
+        message.error('Không tìm thấy lộ trình chăm sóc cho khách hàng này');
+        return;
+      }
+
+      const activityData = {
+        ...values,
+        care_journey_id: careJourneyId,
+        scheduled_date: values.scheduled_date.format('YYYY-MM-DD'),
+        status: values.status,
+        approval_type: values.approval_type,
+        requires_media: values.requires_media || false,
+        photo_requirement: values.photo_requirement || false,
+        video_requirement: values.video_requirement || false,
+        text_requirement: values.text_requirement || false,
+        voice_requirement: values.voice_requirement || false
+      };
+
+      await customerCareService.createDailyCareActivity(activityData);
+      message.success('Thêm hoạt động mới thành công');
+      
+      setDailyCareActivityModalVisible(false);
+      dailyCareActivityForm.resetFields();
+      
+      // Reload activities after save
+      if (selectedCustomer) {
+        await loadCustomerActivities(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error creating daily care activity:', error);
+      message.error('Lỗi khi tạo hoạt động mới');
+    }
+  };
+
+  // Helper function to get care journey for customer
+  const getCareJourneyForCustomer = async (customerId) => {
+    try {
+      console.log('Fetching care journeys for customer:', customerId);
+      // Fetch the actual care journey for this customer
+      const response = await customerCareService.getCustomerCareJourneys(customerId);
+      console.log('Care journeys response:', response);
+      
+      // Extract data from response - handle different response formats
+      const careJourneys = response.data || response.results || [];
+      console.log('Care journeys data:', careJourneys);
+      
+      // Return the first active care journey, or create a new one if none exists
+      if (careJourneys && careJourneys.length > 0) {
+        const activeJourney = careJourneys.find(journey => journey.status === 'active');
+        if (activeJourney) {
+          console.log('Found active care journey:', activeJourney.id);
+          return activeJourney.id;
+        }
+        // If no active journey, return the most recent one
+        console.log('No active journey, returning first one:', careJourneys[0].id);
+        return careJourneys[0].id;
+      }
+      
+      // If no care journey exists, we need to create one
+      // For now, return null and show error message
+      console.log('No care journeys found for customer');
+      return null;
+    } catch (error) {
+      console.error('Error getting care journey:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      return null;
+    }
   };
 
   // Table columns
@@ -833,11 +945,17 @@ const CustomerCare = () => {
           </Form.Item>
           <Form.Item name="type" label="Loại hoạt động" rules={[{ required: true }]}>
             <Select placeholder="Chọn loại hoạt động">
+              <Option value="simple_check">Kiểm tra đơn giản</Option>
               <Option value="photo_upload">Chụp ảnh</Option>
               <Option value="video_upload">Quay video</Option>
-              <Option value="phone_call">Gọi điện</Option>
+              <Option value="voice_note">Ghi âm</Option>
+              <Option value="status_update">Cập nhật trạng thái</Option>
               <Option value="text_feedback">Phản hồi văn bản</Option>
-              <Option value="checkup">Kiểm tra</Option>
+              <Option value="medication_reminder">Nhắc thuốc</Option>
+              <Option value="exercise">Bài tập</Option>
+              <Option value="follow_up">Theo dõi</Option>
+              <Option value="appointment">Lịch hẹn</Option>
+              <Option value="other">Khác</Option>
             </Select>
           </Form.Item>
           <Form.Item name="dueDate" label="Hạn hoàn thành" rules={[{ required: true }]}>
@@ -852,9 +970,11 @@ const CustomerCare = () => {
           </Form.Item>
           <Form.Item name="status" label="Trạng thái">
             <Select placeholder="Chọn trạng thái">
-              <Option value="pending">Chờ thực hiện</Option>
+              <Option value="scheduled">Đã lên lịch</Option>
               <Option value="in_progress">Đang thực hiện</Option>
+              <Option value="pending_approval">Chờ phê duyệt</Option>
               <Option value="completed">Hoàn thành</Option>
+              <Option value="cancelled">Đã hủy</Option>
             </Select>
           </Form.Item>
           <Form.Item name="requiresApproval" valuePropName="checked">
