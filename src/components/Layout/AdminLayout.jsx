@@ -77,11 +77,11 @@ const AdminLayout = ({ children }) => {
       icon: <FileTextOutlined />,
       label: 'Template Chăm sóc',
     },
-    {
-      key: '/staff',
-      icon: <TeamOutlined />,
-      label: 'Quản lý Nhân viên',
-    },
+    // {
+    //   key: '/staff',
+    //   icon: <TeamOutlined />,
+    //   label: 'Quản lý Nhân viên',
+    // },
     {
       key: '/settings',
       icon: <SettingOutlined />,
