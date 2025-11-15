@@ -14,6 +14,11 @@ import {
   Popconfirm,
   Spin,
   Tooltip,
+  Timeline,
+  Avatar,
+  List,
+  Badge,
+  Divider,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,6 +29,13 @@ import {
   ReloadOutlined,
   UserOutlined,
   TeamOutlined,
+  PhoneOutlined,
+  MessageOutlined,
+  MedicineBoxOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import customerService from '../services/customerService';
@@ -38,8 +50,10 @@ const Customers = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
+  const [isJourneyModalVisible, setIsJourneyModalVisible] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [assigningCustomer, setAssigningCustomer] = useState(null);
+  const [viewingCustomer, setViewingCustomer] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -50,6 +64,116 @@ const Customers = () => {
   const [nurseLoading, setNurseLoading] = useState(false);
   const [form] = Form.useForm();
   const [assignForm] = Form.useForm();
+
+  // Mock data for customer journey timeline
+  const mockCustomerJourney = (customer) => [
+    {
+      id: 1,
+      type: 'surgery',
+      title: 'Phẫu thuật nâng ngực',
+      description: 'Khách hàng đã thực hiện phẫu thuật nâng ngực thành công',
+      date: customer.surgeryDate || '2024-12-15',
+      time: '08:30',
+      status: 'completed',
+      performedBy: 'BS. Nguyễn Văn A',
+      notes: 'Phẫu thuật diễn ra thuận lợi, không có biến chứng',
+      icon: <MedicineBoxOutlined />,
+      color: 'green'
+    },
+    {
+      id: 2,
+      type: 'care_call',
+      title: 'Gọi điện chăm sóc sau phẫu thuật',
+      description: 'Y tá gọi điện kiểm tra tình trạng sức khỏe',
+      date: '2024-12-16',
+      time: '14:00',
+      status: 'completed',
+      performedBy: 'YT. Trần Thị B',
+      notes: 'Khách hàng cảm thấy đau nhẹ, đã hướng dẫn sử dụng thuốc giảm đau',
+      duration: '15 phút',
+      icon: <PhoneOutlined />,
+      color: 'blue'
+    },
+    {
+      id: 3,
+      type: 'customer_action',
+      title: 'Khách hàng gửi hình ảnh vết mổ',
+      description: 'Khách hàng chụp và gửi hình ảnh vết mổ qua ứng dụng',
+      date: '2024-12-17',
+      time: '09:15',
+      status: 'completed',
+      performedBy: customer.name,
+      notes: 'Vết mổ sạch sẽ, không có dấu hiệu nhiễm trùng',
+      icon: <MessageOutlined />,
+      color: 'purple'
+    },
+    {
+      id: 4,
+      type: 'doctor_feedback',
+      title: 'Bác sĩ đánh giá tình trạng',
+      description: 'Bác sĩ xem xét hình ảnh và đưa ra nhận xét',
+      date: '2024-12-17',
+      time: '11:30',
+      status: 'completed',
+      performedBy: 'BS. Nguyễn Văn A',
+      notes: 'Vết mổ lành tốt, tiếp tục theo dõi và vệ sinh đúng cách',
+      icon: <CheckCircleOutlined />,
+      color: 'green'
+    },
+    {
+      id: 5,
+      type: 'care_call',
+      title: 'Gọi điện tư vấn chăm sóc',
+      description: 'Y tá hướng dẫn chăm sóc vết mổ và chế độ dinh dưỡng',
+      date: '2024-12-18',
+      time: '10:00',
+      status: 'completed',
+      performedBy: 'YT. Trần Thị B',
+      notes: 'Khách hàng tuân thủ tốt hướng dẫn, tình trạng ổn định',
+      duration: '20 phút',
+      icon: <PhoneOutlined />,
+      color: 'blue'
+    },
+    {
+      id: 6,
+      type: 'customer_action',
+      title: 'Khách hàng báo cáo triệu chứng',
+      description: 'Khách hàng báo cáo cảm thấy ngứa nhẹ quanh vết mổ',
+      date: '2024-12-19',
+      time: '16:45',
+      status: 'pending',
+      performedBy: customer.name,
+      notes: 'Đã thông báo cho y tá, đang chờ tư vấn',
+      icon: <ExclamationCircleOutlined />,
+      color: 'orange'
+    },
+    {
+      id: 7,
+      type: 'nurse_feedback',
+      title: 'Y tá tư vấn về triệu chứng ngứa',
+      description: 'Y tá giải thích về hiện tượng ngứa là bình thường trong quá trình lành vết thương',
+      date: '2024-12-19',
+      time: '17:30',
+      status: 'completed',
+      performedBy: 'YT. Trần Thị B',
+      notes: 'Hướng dẫn khách hàng không gãi, giữ vệ sinh và báo cáo nếu triệu chứng nặng hơn',
+      icon: <CheckCircleOutlined />,
+      color: 'green'
+    },
+    {
+      id: 8,
+      type: 'upcoming',
+      title: 'Lịch hẹn tái khám',
+      description: 'Lịch hẹn tái khám định kỳ sau 1 tuần',
+      date: '2024-12-22',
+      time: '09:00',
+      status: 'scheduled',
+      performedBy: 'Hệ thống',
+      notes: 'Khách hàng cần đến phòng khám để bác sĩ kiểm tra',
+      icon: <CalendarOutlined />,
+      color: 'cyan'
+    }
+  ];
 
   // Load customers from API
   useEffect(() => {
@@ -300,9 +424,13 @@ const Customers = () => {
   };
 
   const handleView = (customer) => {
-    // Xử lý xem chi tiết khách hàng
-    message.info(`Xem chi tiết khách hàng: ${customer.name}`);
-    // TODO: Navigate to customer detail page when implemented
+    setViewingCustomer(customer);
+    setIsJourneyModalVisible(true);
+  };
+
+  const handleJourneyModalCancel = () => {
+    setIsJourneyModalVisible(false);
+    setViewingCustomer(null);
   };
 
   const handleDelete = async (id) => {
@@ -684,6 +812,106 @@ const Customers = () => {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal hành trình khách hàng */}
+      <Modal
+        title={`Hành trình chăm sóc - ${viewingCustomer?.name}`}
+        open={isJourneyModalVisible}
+        onCancel={handleJourneyModalCancel}
+        footer={[
+          <Button key="close" onClick={handleJourneyModalCancel}>
+            Đóng
+          </Button>
+        ]}
+        width={800}
+        style={{ maxHeight: '80vh' }}
+      >
+        {viewingCustomer && (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <div style={{ marginBottom: 16, padding: 16, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <div><strong>Thông tin khách hàng:</strong></div>
+                <div>Tên: {viewingCustomer.name}</div>
+                <div>Số điện thoại: {viewingCustomer.phone}</div>
+                <div>Loại phẫu thuật: {viewingCustomer.surgeryType || 'Chưa cập nhật'}</div>
+                <div>Ngày phẫu thuật: {dayjs(viewingCustomer.surgeryDate).format('DD/MM/YYYY')}</div>
+              </Space>
+            </div>
+
+            <Divider />
+
+            <Timeline
+              mode="left"
+              items={mockCustomerJourney(viewingCustomer).map((item) => ({
+                color: item.color,
+                dot: (
+                  <Badge
+                    count={item.icon}
+                    style={{ 
+                      backgroundColor: item.color,
+                      color: 'white'
+                    }}
+                  />
+                ),
+                children: (
+                  <Card 
+                    size="small" 
+                    style={{ 
+                      marginBottom: 16,
+                      borderLeft: `4px solid ${item.color}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: 8 }}>
+                          {item.title}
+                        </div>
+                        <div style={{ color: '#666', marginBottom: 8 }}>
+                          {item.description}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#888' }}>
+                          <strong>Thực hiện bởi:</strong> {item.performedBy}
+                        </div>
+                        {item.notes && (
+                          <div style={{ marginTop: 8, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4 }}>
+                            <strong>Ghi chú:</strong> {item.notes}
+                          </div>
+                        )}
+                        {item.duration && (
+                          <div style={{ marginTop: 4, fontSize: '12px', color: '#999' }}>
+                            Thời lượng: {item.duration}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right', minWidth: 120 }}>
+                        <div style={{ fontWeight: 'bold', color: item.color }}>
+                          {dayjs(item.date).format('DD/MM/YYYY')}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#999' }}>
+                          {item.time}
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <Tag 
+                            color={
+                              item.status === 'completed' ? 'green' :
+                              item.status === 'pending' ? 'orange' :
+                              item.status === 'scheduled' ? 'blue' : 'default'
+                            }
+                          >
+                            {item.status === 'completed' ? 'Hoàn thành' :
+                             item.status === 'pending' ? 'Đang chờ' :
+                             item.status === 'scheduled' ? 'Đã lên lịch' : item.status}
+                          </Tag>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ),
+              }))}
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );
