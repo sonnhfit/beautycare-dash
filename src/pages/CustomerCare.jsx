@@ -390,14 +390,27 @@ const CustomerCare = () => {
     try {
       const values = await appointmentForm.validateFields();
       
+      // Map frontend values to backend valid choices
+      const appointmentTypeMap = {
+        'tai_kham': 'follow_up',
+        'cat_chi': 'check_up',
+        'kiem_tra': 'check_up',
+        'tu_van': 'consultation'
+      };
+      
+      const statusMap = {
+        'pending': 'scheduled',
+        'confirmed': 'confirmed',
+        'completed': 'completed'
+      };
+      
       const appointmentData = {
-        ...values,
-        customer: selectedCustomer.id,
+        customer_id: selectedCustomer.id,
         appointment_date: values.date.format('YYYY-MM-DD'),
         appointment_time: values.time.format('HH:mm'),
-        appointment_type: values.type,
-        status: values.status,
-        purpose: values.notes
+        appointment_type: appointmentTypeMap[values.type] || 'consultation',
+        status: statusMap[values.status] || 'scheduled',
+        purpose: values.notes || `Lịch hẹn ${values.type}`
       };
 
       if (editingAppointment) {

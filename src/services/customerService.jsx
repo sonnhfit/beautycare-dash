@@ -224,6 +224,21 @@ const customerService = {
       console.error('Error fetching customer stats:', error);
       throw new Error('Không thể tải thống kê khách hàng.');
     }
+  },
+
+  /**
+   * Get customer journey timeline by customer ID
+   * @param {number} customerId - Customer ID
+   * @returns {Promise} Customer journey timeline data
+   */
+  async getCustomerJourneyTimeline(customerId) {
+    try {
+      const response = await api.get(`/customers/${customerId}/journey-timeline/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching customer journey timeline for customer ${customerId}:`, error);
+      throw new Error('Không thể tải hành trình chăm sóc của khách hàng.');
+    }
   }
 };
 

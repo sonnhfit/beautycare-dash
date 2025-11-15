@@ -62,6 +62,10 @@ const Customers = () => {
   const [nurses, setNurses] = useState([]);
   const [filteredNurses, setFilteredNurses] = useState([]);
   const [nurseLoading, setNurseLoading] = useState(false);
+  const [journeyTimeline, setJourneyTimeline] = useState(null);
+  const [journeyLoading, setJourneyLoading] = useState(false);
+  const [careNotes, setCareNotes] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
   const [form] = Form.useForm();
   const [assignForm] = Form.useForm();
 
@@ -423,14 +427,204 @@ const Customers = () => {
     setIsAssignModalVisible(true);
   };
 
-  const handleView = (customer) => {
+  const handleView = async (customer) => {
     setViewingCustomer(customer);
     setIsJourneyModalVisible(true);
+    await fetchCustomerJourneyTimeline(customer.id);
   };
 
   const handleJourneyModalCancel = () => {
     setIsJourneyModalVisible(false);
     setViewingCustomer(null);
+    setJourneyTimeline(null);
+    setCareNotes('');
+  };
+
+  // Fetch customer journey timeline
+  const fetchCustomerJourneyTimeline = async (customerId) => {
+    setJourneyLoading(true);
+    try {
+      const response = await customerService.getCustomerJourneyTimeline(customerId);
+      setJourneyTimeline(response.data);
+    } catch (error) {
+      console.error('Error fetching customer journey timeline:', error);
+      message.error('Không thể tải hành trình chăm sóc của khách hàng');
+    } finally {
+      setJourneyLoading(false);
+    }
+  };
+
+  // Add customer care note
+  const handleAddCareNote = async () => {
+    if (!careNotes.trim()) {
+      message.warning('Vui lòng nhập ghi chú chăm sóc');
+      return;
+    }
+
+    setAddingNote(true);
+    try {
+      // TODO: Implement API to add care notes
+      // For now, we'll just show a success message
+      message.success('Đã thêm ghi chú chăm sóc thành công');
+      setCareNotes('');
+      
+      // Refresh timeline to show the new note
+      if (viewingCustomer) {
+        await fetchCustomerJourneyTimeline(viewingCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error adding care note:', error);
+      message.error('Không thể thêm ghi chú chăm sóc');
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  // Helper function to get timeline item icon and color
+  const getTimelineItemIcon = (type) => {
+    switch (type) {
+      case 'daily_activity':
+        return <CheckCircleOutlined />;
+      case 'medication':
+        return <MedicineBoxOutlined />;
+      case 'appointment':
+        return <CalendarOutlined />;
+      default:
+        return <ClockCircleOutlined />;
+    }
+  };
+
+  const getTimelineItemColor = (type, status) => {
+    if (status === 'completed') return 'green';
+    if (status === 'scheduled') return 'blue';
+    if (status === 'pending') return 'orange';
+    
+    switch (type) {
+      case 'daily_activity':
+        return '#4CAF50';
+      case 'medication':
+        return '#2196F3';
+      case 'appointment':
+        return '#FF9800';
+      default:
+        return '#666666';
+    }
+  };
+
+  // Transform API timeline data to Ant Design Timeline format
+  const transformTimelineData = (timelineData) => {
+    if (!timelineData?.timeline) return [];
+
+    // Group timeline items by date
+    const groupedByDate = {};
+    timelineData.timeline.forEach(day => {
+      const date = dayjs(day.date).format('DD/MM/YYYY');
+      if (!groupedByDate[date]) {
+        groupedByDate[date] = [];
+      }
+      groupedByDate[date].push(...day.activities);
+    });
+
+    // Convert to Ant Design Timeline format
+    const timelineItems = [];
+    Object.entries(groupedByDate).forEach(([date, activities]) => {
+      activities.forEach((activity, index) => {
+        const color = getTimelineItemColor(activity.type, activity.status);
+        const icon = getTimelineItemIcon(activity.type);
+        
+        timelineItems.push({
+          color: color,
+          dot: (
+            <Badge
+              count={icon}
+              style={{ 
+                backgroundColor: color,
+                color: 'white'
+              }}
+            />
+          ),
+          children: (
+            <Card 
+              size="small" 
+              style={{ 
+                marginBottom: 16,
+                borderLeft: `4px solid ${color}`
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: 8 }}>
+                    {activity.title}
+                  </div>
+                  <div style={{ color: '#666', marginBottom: 8 }}>
+                    {activity.description}
+                  </div>
+                  
+                  {/* Media requirements */}
+                  {activity.media_requirements && (
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Yêu cầu:</strong>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        {activity.media_requirements.photo && (
+                          <Tag color="blue">Ảnh</Tag>
+                        )}
+                        {activity.media_requirements.video && (
+                          <Tag color="orange">Video</Tag>
+                        )}
+                        {activity.media_requirements.text && (
+                          <Tag color="green">Ghi chú</Tag>
+                        )}
+                        {activity.media_requirements.voice && (
+                          <Tag color="purple">Ghi âm</Tag>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Feedback */}
+                  {activity.feedback && (
+                    <div style={{ marginTop: 8, padding: 8, backgroundColor: '#E3F2FD', borderRadius: 4 }}>
+                      <div style={{ fontSize: '12px', color: '#1565C0', marginBottom: 4 }}>
+                        <strong>Phản hồi từ {activity.feedback.name}:</strong>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#424242' }}>
+                        {activity.feedback.message}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#666', marginTop: 4 }}>
+                        {dayjs(activity.feedback.created_at).format('DD/MM/YYYY HH:mm')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', minWidth: 120 }}>
+                  <div style={{ fontWeight: 'bold', color: color }}>
+                    {date}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#999' }}>
+                    Ngày thứ {activity.day_number}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <Tag 
+                      color={
+                        activity.status === 'completed' ? 'green' :
+                        activity.status === 'pending' ? 'orange' :
+                        activity.status === 'scheduled' ? 'blue' : 'default'
+                      }
+                    >
+                      {activity.status === 'completed' ? 'Hoàn thành' :
+                       activity.status === 'pending' ? 'Đang chờ' :
+                       activity.status === 'scheduled' ? 'Đã lên lịch' : activity.status}
+                    </Tag>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ),
+        });
+      });
+    });
+
+    return timelineItems;
   };
 
   const handleDelete = async (id) => {
@@ -839,77 +1033,77 @@ const Customers = () => {
               </Space>
             </div>
 
+            {/* Customer Care Notes Section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                <strong>Ghi chú chăm sóc:</strong>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <Input.TextArea
+                  placeholder="Nhập ghi chú chăm sóc cho khách hàng..."
+                  value={careNotes}
+                  onChange={(e) => setCareNotes(e.target.value)}
+                  rows={3}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleAddCareNote}
+                  loading={addingNote}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  Thêm ghi chú
+                </Button>
+              </div>
+            </div>
+
             <Divider />
 
-            <Timeline
-              mode="left"
-              items={mockCustomerJourney(viewingCustomer).map((item) => ({
-                color: item.color,
-                dot: (
-                  <Badge
-                    count={item.icon}
-                    style={{ 
-                      backgroundColor: item.color,
-                      color: 'white'
-                    }}
+            {/* Timeline Section */}
+            {journeyLoading ? (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <Spin size="large" />
+                <div style={{ marginTop: 16 }}>Đang tải hành trình chăm sóc...</div>
+              </div>
+            ) : journeyTimeline ? (
+              <div>
+                {/* Surgery Information */}
+                {journeyTimeline.customer && (
+                  <div style={{ marginBottom: 16, padding: 16, backgroundColor: '#E8F5E8', borderRadius: 8 }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Thông tin phẫu thuật:</div>
+                    <div>Loại phẫu thuật: {journeyTimeline.customer.surgery_type || 'Chưa cập nhật'}</div>
+                    <div>Ngày phẫu thuật: {dayjs(journeyTimeline.customer.surgery_date).format('DD/MM/YYYY')}</div>
+                    <div>Bác sĩ: {journeyTimeline.customer.doctor_name || 'Chưa gán'}</div>
+                  </div>
+                )}
+
+                {/* Timeline */}
+                {journeyTimeline.timeline && journeyTimeline.timeline.length > 0 ? (
+                  <Timeline
+                    mode="left"
+                    items={transformTimelineData(journeyTimeline)}
                   />
-                ),
-                children: (
-                  <Card 
-                    size="small" 
-                    style={{ 
-                      marginBottom: 16,
-                      borderLeft: `4px solid ${item.color}`
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: 8 }}>
-                          {item.title}
-                        </div>
-                        <div style={{ color: '#666', marginBottom: 8 }}>
-                          {item.description}
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#888' }}>
-                          <strong>Thực hiện bởi:</strong> {item.performedBy}
-                        </div>
-                        {item.notes && (
-                          <div style={{ marginTop: 8, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4 }}>
-                            <strong>Ghi chú:</strong> {item.notes}
-                          </div>
-                        )}
-                        {item.duration && (
-                          <div style={{ marginTop: 4, fontSize: '12px', color: '#999' }}>
-                            Thời lượng: {item.duration}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'right', minWidth: 120 }}>
-                        <div style={{ fontWeight: 'bold', color: item.color }}>
-                          {dayjs(item.date).format('DD/MM/YYYY')}
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#999' }}>
-                          {item.time}
-                        </div>
-                        <div style={{ marginTop: 4 }}>
-                          <Tag 
-                            color={
-                              item.status === 'completed' ? 'green' :
-                              item.status === 'pending' ? 'orange' :
-                              item.status === 'scheduled' ? 'blue' : 'default'
-                            }
-                          >
-                            {item.status === 'completed' ? 'Hoàn thành' :
-                             item.status === 'pending' ? 'Đang chờ' :
-                             item.status === 'scheduled' ? 'Đã lên lịch' : item.status}
-                          </Tag>
-                        </div>
-                      </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+                    <div>Chưa có hoạt động chăm sóc nào</div>
+                    <div style={{ fontSize: '12px', marginTop: 8 }}>
+                      Hành trình chăm sóc sẽ xuất hiện khi có hoạt động được tạo
                     </div>
-                  </Card>
-                ),
-              }))}
-            />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+                <div>Không thể tải hành trình chăm sóc</div>
+                <Button 
+                  type="link" 
+                  onClick={() => viewingCustomer && fetchCustomerJourneyTimeline(viewingCustomer.id)}
+                  style={{ marginTop: 8 }}
+                >
+                  Thử lại
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>

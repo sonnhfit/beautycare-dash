@@ -135,7 +135,7 @@ const customerCareService = {
    */
   async createAppointment(appointmentData) {
     try {
-      const response = await api.post('/customers/appointments/', appointmentData);
+      const response = await api.post('/appointments/create/', appointmentData);
       return response.data;
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -151,7 +151,7 @@ const customerCareService = {
    */
   async updateAppointment(appointmentId, appointmentData) {
     try {
-      const response = await api.put(`/customers/appointments/${appointmentId}/`, appointmentData);
+      const response = await api.put(`/appointments/${appointmentId}/`, appointmentData);
       return response.data;
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -166,7 +166,7 @@ const customerCareService = {
    */
   async deleteAppointment(appointmentId) {
     try {
-      const response = await api.delete(`/customers/appointments/${appointmentId}/`);
+      const response = await api.delete(`/appointments/${appointmentId}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting appointment:', error);
