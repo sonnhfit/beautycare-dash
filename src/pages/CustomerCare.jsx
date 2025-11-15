@@ -94,6 +94,7 @@ const CustomerCare = () => {
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [appointmentModalVisible, setAppointmentModalVisible] = useState(false);
   const [dailyCareActivityModalVisible, setDailyCareActivityModalVisible] = useState(false);
+  const [headerActivityModalVisible, setHeaderActivityModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -102,6 +103,7 @@ const CustomerCare = () => {
   const [activityForm] = Form.useForm();
   const [appointmentForm] = Form.useForm();
   const [dailyCareActivityForm] = Form.useForm();
+  const [headerActivityForm] = Form.useForm();
 
   useEffect(() => {
     loadInitialData();
@@ -460,6 +462,57 @@ const CustomerCare = () => {
     return texts[status] || status;
   };
 
+  // Header Activity Management
+  const handleAddHeaderActivity = () => {
+    setHeaderActivityModalVisible(true);
+    headerActivityForm.resetFields();
+    headerActivityForm.setFieldsValue({
+      days_post_op: 1,
+      scheduled_date: dayjs().add(1, 'day'),
+      status: 'scheduled',
+      approval_type: 'none'
+    });
+  };
+
+  const handleHeaderActivityModalOk = async () => {
+    try {
+      const values = await headerActivityForm.validateFields();
+      
+      // Get care journey for this customer
+      const careJourneyId = await getCareJourneyForCustomer(selectedCustomer.id);
+      if (!careJourneyId) {
+        message.error('Không tìm thấy lộ trình chăm sóc cho khách hàng này');
+        return;
+      }
+
+      const activityData = {
+        name: values.name,
+        description: values.description,
+        care_journey_id: careJourneyId,
+        days_post_op: parseInt(values.days_post_op),
+        scheduled_date: values.scheduled_date.format('YYYY-MM-DD'),
+        action_type: values.type,
+        priority: values.priority,
+        status: values.status,
+        approval_type: values.requiresApproval ? 'nurse' : 'none'
+      };
+
+      await customerCareService.createDailyCareActivity(activityData);
+      message.success('Thêm hoạt động mới thành công');
+      
+      setHeaderActivityModalVisible(false);
+      headerActivityForm.resetFields();
+      
+      // Reload activities after save
+      if (selectedCustomer) {
+        await loadCustomerActivities(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error('Error creating header activity:', error);
+      message.error('Lỗi khi tạo hoạt động mới');
+    }
+  };
+
   // Daily Care Activity Management
   const handleAddDailyCareActivity = (day) => {
     setSelectedDay(day);
@@ -718,7 +771,9 @@ const CustomerCare = () => {
         extra={
           <Space>
             <Button icon={<EditOutlined />}>Chỉnh sửa</Button>
-            <Button type="primary" icon={<PlusOutlined />}>Thêm Task</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddHeaderActivity}>
+              Thêm Task
+            </Button>
           </Space>
         }
       >
@@ -1021,6 +1076,69 @@ const CustomerCare = () => {
           </Form.Item>
           <Form.Item name="notes" label="Ghi chú">
             <TextArea placeholder="Nhập ghi chú (nếu có)" rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Header Activity Modal */}
+      <Modal
+        title="Thêm Hoạt động Mới"
+        open={headerActivityModalVisible}
+        onOk={handleHeaderActivityModalOk}
+        onCancel={() => setHeaderActivityModalVisible(false)}
+        width={600}
+      >
+        <Form form={headerActivityForm} layout="vertical">
+          <Form.Item name="name" label="Tên hoạt động" rules={[{ required: true }]}>
+            <Input placeholder="Nhập tên hoạt động" />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả" rules={[{ required: true }]}>
+            <TextArea placeholder="Nhập mô tả hoạt động" rows={3} />
+          </Form.Item>
+          <Form.Item name="type" label="Loại hoạt động" rules={[{ required: true }]}>
+            <Select placeholder="Chọn loại hoạt động">
+              <Option value="simple_check">Kiểm tra đơn giản</Option>
+              <Option value="photo_upload">Chụp ảnh</Option>
+              <Option value="video_upload">Quay video</Option>
+              <Option value="voice_note">Ghi âm</Option>
+              <Option value="status_update">Cập nhật trạng thái</Option>
+              <Option value="text_feedback">Phản hồi văn bản</Option>
+              <Option value="medication_reminder">Nhắc thuốc</Option>
+              <Option value="exercise">Bài tập</Option>
+              <Option value="follow_up">Theo dõi</Option>
+              <Option value="appointment">Lịch hẹn</Option>
+              <Option value="other">Khác</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="days_post_op" label="Ngày hậu phẫu" rules={[{ required: true }]}>
+            <InputNumber 
+              min={1} 
+              max={30} 
+              placeholder="Nhập số ngày hậu phẫu"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <Form.Item name="scheduled_date" label="Ngày thực hiện" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="priority" label="Mức độ ưu tiên">
+            <Select placeholder="Chọn mức ưu tiên">
+              <Option value="low">Thấp</Option>
+              <Option value="medium">Trung bình</Option>
+              <Option value="high">Cao</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái">
+            <Select placeholder="Chọn trạng thái">
+              <Option value="scheduled">Đã lên lịch</Option>
+              <Option value="in_progress">Đang thực hiện</Option>
+              <Option value="pending_approval">Chờ phê duyệt</Option>
+              <Option value="completed">Hoàn thành</Option>
+              <Option value="cancelled">Đã hủy</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="requiresApproval" valuePropName="checked">
+            <Switch checkedChildren="Cần phê duyệt" unCheckedChildren="Không cần phê duyệt" />
           </Form.Item>
         </Form>
       </Modal>
